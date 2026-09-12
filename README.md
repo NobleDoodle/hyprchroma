@@ -48,6 +48,9 @@ hyprchroma                        # sync only what changed
 hyprchroma --force                # rewrite everything
 hyprchroma --target=gtk --force   # gtk | qt-kde | dark-reader | pear
 hyprchroma --target=pear --set-enabled=false   # turn one off and revert it
+hyprchroma framework list         # what you have removed
+hyprchroma framework remove pear  # take one out and revert it
+hyprchroma framework restore pear # put it back and sync it
 hyprchroma restore --stock        # hand everything back to Omarchy's defaults
 hyprchroma restore --captured     # put back what was on disk before first run
 ```
@@ -56,6 +59,12 @@ Turning a framework off reverts it to the values captured before hyprchroma
 first touched it, rather than leaving its colors in place with syncing merely
 stopped. The snapshot is kept, so turning it back on re-syncs from the same
 baseline.
+
+Removing one goes further: it reverts the framework and takes it out of the
+bar widget's panel entirely, for people who do not use Pear Desktop or Dark
+Reader and would rather not be offered them. Nothing is lost — `framework
+restore` puts it back and syncs it, and the panel lists what you removed behind
+its `/` key.
 
 ## Where the palette comes from
 

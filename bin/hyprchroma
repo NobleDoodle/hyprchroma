@@ -110,6 +110,23 @@ install_hooks() {
   done
 }
 
+# Defined ahead of the subcommand dispatch below, which uses both.
+fail() {
+  printf 'Hyprchroma: %s\n' "$*" >&2
+  (( notify )) && notify-send -a Hyprchroma "Color synchronization failed" "$*" || true
+  exit 1
+}
+
+target_key() {
+  case "$1" in
+    gtk) printf 'gtk' ;;
+    qt-kde) printf 'qtKde' ;;
+    dark-reader) printf 'darkReader' ;;
+    pear) printf 'pear' ;;
+    *) return 1 ;;
+  esac
+}
+
 case "${1:-}" in
   daemon)
     # Omarchy is where the palette comes from, so without it there is nothing
@@ -166,6 +183,69 @@ case "${1:-}" in
       --state-dir "$STATE_DIR" --data-dir "$DATA_DIR" restore --mode "$mode"
     exit $?
     ;;
+  framework)
+    # A framework the user does not want is not the same as one switched off.
+    # Off is a toggle they flipped and will flip back; removed means take it out
+    # of the panel entirely. Both stop syncing and both revert, so the service
+    # treats them identically -- the difference is only whether the row is
+    # there to flip. Recorded here so the panel can act on it and so the choice
+    # survives a reinstall.
+    shift
+    action=${1:-}; name=${2:-}
+    case "$action" in
+      list)
+        python3 - "$SETTINGS_FILE" <<'PY'
+import json, sys
+from pathlib import Path
+try:
+    data = json.loads(Path(sys.argv[1]).read_text())
+except (OSError, ValueError):
+    data = {}
+for entry in data.get("removed", []):
+    print(entry)
+PY
+        exit 0
+        ;;
+      remove|restore)
+        [[ -n $name ]] || fail "hyprchroma framework $action needs a target"
+        key=$(target_key "$name") || fail "unknown target: $name"
+        # Reverting first, while it is still listed, so the framework hands back
+        # what it changed before it disappears from the panel.
+        if [[ $action == remove ]]; then
+          "$HYPRCHROMA_SELF" --target="$name" --set-enabled=false --quiet || true
+        fi
+        python3 - "$SETTINGS_FILE" "$key" "$action" <<'PY'
+import json, os, subprocess, sys
+from pathlib import Path
+
+path, key, action = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+try:
+    data = json.loads(path.read_text())
+except (OSError, ValueError):
+    data = {}
+removed = [entry for entry in data.get("removed", []) if entry != key]
+if action == "remove":
+    removed.append(key)
+data["removed"] = sorted(removed)
+subprocess.run(
+    [os.path.join(os.environ.get("HYPRCHROMA_LIB", "/usr/lib/hyprchroma"),
+                  "hyprchroma-state"),
+     "write-file", "--path", str(path), "--mode", "644"],
+    input=(json.dumps(data, indent=2) + "\n").encode(), check=True)
+PY
+        # Restoring last, so it is back in the panel before it syncs.
+        if [[ $action == restore ]]; then
+          "$HYPRCHROMA_SELF" --target="$name" --set-enabled=true --quiet || true
+        fi
+        printf 'Hyprchroma: %s %sd\n' "$name" "$action"
+        exit 0
+        ;;
+      *)
+        echo "Usage: hyprchroma framework (list | remove <target> | restore <target>)" >&2
+        exit 2
+        ;;
+    esac
+    ;;
   palette)
     shift
     case "${1:-}" in
@@ -193,7 +273,7 @@ case "${1:-}" in
     exit $?
     ;;
   --version|version)
-    echo "hyprchroma 1.4.1"
+    echo "hyprchroma 1.5.0"
     exit 0
     ;;
 esac
@@ -222,6 +302,7 @@ Usage: hyprchroma [--target=gtk|qt-kde|dark-reader|pear]
                   [--set-enabled=true|false] [--force] [--quiet] [--notify]
        hyprchroma daemon           watch for changes and keep everything in step
        hyprchroma install-hooks    place the Omarchy theme and font hooks
+       hyprchroma framework (list|remove <target>|restore <target>)
        hyprchroma palette [--all|--capture|--template|--source]
        hyprchroma stale-apps       list apps still showing the old theme
        hyprchroma restore [--stock|--captured]
@@ -246,11 +327,6 @@ notify_user() {
   notify-send -a Hyprchroma "Hyprchroma" "$*"
 }
 
-fail() {
-  printf 'Hyprchroma: %s\n' "$*" >&2
-  (( notify )) && notify-send -a Hyprchroma "Color synchronization failed" "$*" || true
-  exit 1
-}
 
 recycle_idle_apps() {
   "$HYPRCHROMA_LIB/hyprchroma-state" \
@@ -322,15 +398,6 @@ command -v python3 >/dev/null || fail "python3 is not available"
 
 mkdir -p "$STATE_DIR" "$DATA_DIR"
 
-target_key() {
-  case "$1" in
-    gtk) printf 'gtk' ;;
-    qt-kde) printf 'qtKde' ;;
-    dark-reader) printf 'darkReader' ;;
-    pear) printf 'pear' ;;
-    *) return 1 ;;
-  esac
-}
 
 target_enabled() {
   local key
