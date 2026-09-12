@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gtk.css belongs to the user. Taking it over meant their own rules there
 # stopped applying the moment this was installed, and were overwritten again on
-# every theme change. The colours live in a stylesheet of ours that gtk.css
+# every theme change. The colors live in a stylesheet of ours that gtk.css
 # merely imports -- the approach Noctalia takes, and better than what was here.
 REPO=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd -- "$REPO" || exit 1

@@ -29,7 +29,7 @@ from pathlib import Path
 # renaming or relinking anything on disk afterwards, which closes the window
 # between checking a path and using it.
 #
-# Legitimate symlinks are still honoured -- dotfile managers routinely link
+# Legitimate symlinks are still honored -- dotfile managers routinely link
 # ~/.config entries -- by resolving the path first and then walking the
 # resolved chain with O_NOFOLLOW. Nothing in that chain may be a symlink at
 # the moment it is opened, and every component must be owned by root or by

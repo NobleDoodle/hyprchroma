@@ -1,5 +1,5 @@
 [Unit]
-Description=Hyprchroma theme synchronisation daemon
+Description=Hyprchroma theme synchronization daemon
 Documentation=https://github.com/NobleDoodle/hyprchroma
 PartOf=graphical-session.target
 After=graphical-session.target

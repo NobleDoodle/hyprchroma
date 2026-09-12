@@ -441,7 +441,7 @@ gtk3_css=$(cat <<EOF
 EOF
 )
 
-# The colours go in a file of our own, and gtk.css is only made to reference
+# The colors go in a file of our own, and gtk.css is only made to reference
 # it. Taking gtk.css over meant a user's own rules there stopped applying the
 # moment this was installed and were overwritten on every theme change; now
 # they sit below the import and override it, which is the right way round.

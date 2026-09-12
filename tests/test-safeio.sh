@@ -138,7 +138,7 @@ chk "no generator embeds a writer of its own" \
   "$(countcode 'tempfile\.mkstemp\(|os\.replace\(temporary' bin/hyprchroma lib/sync-gtk-theme lib/sync-qt-kde-theme)" "0"
 # Eleven: seven in bin/hyprchroma (four embedded writers, the theme hook, the
 # Pear stylesheet, a captured palette), two GTK stylesheets, and the Qt/KDE
-# colour scheme plus kdeglobals.
+# color scheme plus kdeglobals.
 chk "every generator write goes through the helper" \
   "$(countcode 'write-file", "--path"|hyprchroma-state" write-file' bin/hyprchroma lib/sync-gtk-theme lib/sync-qt-kde-theme)" "11"
 chk "sync's embedded writers call the helper" \

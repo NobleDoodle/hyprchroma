@@ -30,12 +30,12 @@ chk "writes nothing into a home that has no Omarchy" \
 chk "the refusal happens before any hook directory is made" \
   "$([ -d "$H/.config/omarchy" ] && echo made || echo none)" "none"
 
-# The guard asks the resolver for a real colour: Omarchy is one source among
-# others now, and a binary that exists but cannot produce a colour is not a
+# The guard asks the resolver for a real color: Omarchy is one source among
+# others now, and a binary that exists but cannot produce a color is not a
 # working source either way.
 # Three: the daemon's guard, the message it prints on failure, and the
 # top-level check the sync path makes.
-chk "the guard asks the resolver for a colour" \
+chk "the guard asks the resolver for a color" \
   "$(countcode 'hyprchroma-palette" background' bin/hyprchroma)" "3"
 chk "no hard requirement on omarchy remains" \
   "$(countcode 'command -v omarchy .*\|\| fail' bin/hyprchroma)" "0"

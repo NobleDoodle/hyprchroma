@@ -20,7 +20,7 @@ chk "a file source wins over Omarchy" \
   "$(XDG_CONFIG_HOME=$T ./$P --source)" "$T/hyprchroma/palette.toml"
 
 # Hex values start with "#", so a parser that strips comments first destroys
-# every colour in the file. It did.
+# every color in the file. It did.
 chk "a quoted #rrggbb value survives parsing" \
   "$(XDG_CONFIG_HOME=$T ./$P background)" "#000000"
 printf 'background = "#123456"  # a trailing comment\n' >> "$T/hyprchroma/palette.toml"
@@ -73,5 +73,5 @@ chk "each generator loads it once, in the parent shell" \
 # --- Omarchy stays first class -------------------------------------------
 chk "hooks are installed only when Omarchy is the source" \
   "$(countcode 'hyprchroma-palette" --source 2>/dev/null\) == omarchy' bin/hyprchroma)" "1"
-chk "no generator calls omarchy for a colour any more" \
+chk "no generator calls omarchy for a color any more" \
   "$(countcode 'omarchy theme color' bin/hyprchroma lib/sync-gtk-theme lib/sync-qt-kde-theme)" "0"

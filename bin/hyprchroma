@@ -78,7 +78,7 @@ migrate_from_omarchroma() {
   [[ -d $old && ! -d $STATE_DIR ]] && mv -- "$old" "$STATE_DIR"
   [[ -d $old_data && ! -d $DATA_DIR ]] && mv -- "$old_data" "$DATA_DIR"
   # Its generated files carry the old name; drop them so a machine is not left
-  # showing two colour schemes, one of which nothing maintains any more.
+  # showing two color schemes, one of which nothing maintains any more.
   rm -f -- "${XDG_DATA_HOME:-$HOME/.local/share}/color-schemes/Omarchroma.colors" \
            "$HOME/.config/YouTube Music/omarchroma.css"
   return 0
@@ -114,10 +114,10 @@ case "${1:-}" in
   daemon)
     # Omarchy is where the palette comes from, so without it there is nothing
     # to follow. Said once, plainly, before anything is written -- rather than
-    # surfacing later as an empty colour, and rather than leaving Omarchy hook
+    # surfacing later as an empty color, and rather than leaving Omarchy hook
     # directories in a home that has no Omarchy. Exit 78 is EX_CONFIG, and the
     # unit is told not to restart on it: this will not fix itself.
-    # Asking for a colour, rather than only asking whether the binary exists:
+    # Asking for a color, rather than only asking whether the binary exists:
     # present-but-unusable and present-but-no-theme-set both end in the same
     # place, and existence alone does not tell them apart from working.
     # A palette has to come from somewhere: a palette file, or Omarchy. The
@@ -399,7 +399,7 @@ if ! flock -n 9; then
 fi
 
 # Switching a framework off reverts it, rather than only stopping future syncs:
-# leaving Hyprchroma's colours in place while claiming the framework is off gave
+# leaving Hyprchroma's colors in place while claiming the framework is off gave
 # no way back short of uninstalling. Reverting to the captured value -- what the
 # framework looked like when Hyprchroma first touched it -- keeps the snapshot
 # in place, so switching back on re-syncs from a known baseline.
@@ -423,7 +423,7 @@ if [[ $set_enabled == "false" ]]; then
     fi
   else
     if [[ $target == "qt-kde" ]]; then
-      # Reverting rewrites kdeglobals and the generated colour scheme, which is
+      # Reverting rewrites kdeglobals and the generated color scheme, which is
       # the same write that disturbs a running KDE application -- switching the
       # toggle off must not do to them what syncing is careful not to. Defer on
       # exactly the condition the sync path defers on.
@@ -448,7 +448,7 @@ if [[ $set_enabled == "false" ]]; then
   fi
   # A revert rewrites the palette exactly as a sync does, so it needs the same
   # two follow-ups. Without them the files revert and every running application
-  # keeps the colours Hyprchroma gave it, with nothing said about why.
+  # keeps the colors Hyprchroma gave it, with nothing said about why.
   recycle_idle_apps
   log "$target disabled and reverted to its captured state"
   notify_user "$target disabled and reverted"
@@ -514,7 +514,7 @@ if [[ -f "$STATUS_FILE" ]]; then
 fi
 qt_kde_state=${qt_kde_state:-}
 
-# A per-application colour scheme overrides the one kdeglobals sets for every
+# A per-application color scheme overrides the one kdeglobals sets for every
 # app, so an app that writes one back drops out of theming until something
 # changes. Clear pins before the unchanged-state short-circuit, so this is
 # enforced on every run rather than only when the palette moves.

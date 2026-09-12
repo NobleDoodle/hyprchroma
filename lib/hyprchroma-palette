@@ -91,7 +91,7 @@ def read_palette(path: Path) -> dict:
             continue
         key, _, value = raw.partition("=")
         value = value.strip()
-        # A quoted value is taken whole: every colour here starts with "#", so
+        # A quoted value is taken whole: every color here starts with "#", so
         # stripping a trailing comment first would eat the value itself.
         if value[:1] in ("\"", "'"):
             quote = value[0]
@@ -136,7 +136,7 @@ def from_omarchy() -> dict:
     """One invocation, not one per key.
 
     omarchy theme color --all resolves the whole palette in a single pass. Asking
-    key by key ran its parser, its alias cascade and its awk-based colour mixing
+    key by key ran its parser, its alias cascade and its awk-based color mixing
     once per key, which made a full sync about nine times slower."""
     result = subprocess.run(["omarchy", "theme", "color", "--all"],
                             capture_output=True, text=True)

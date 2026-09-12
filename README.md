@@ -40,7 +40,7 @@ hyprchroma restore --captured     # put back what was on disk before first run
 ```
 
 Turning a framework off reverts it to the values captured before hyprchroma
-first touched it, rather than leaving its colours in place with syncing merely
+first touched it, rather than leaving its colors in place with syncing merely
 stopped. The snapshot is kept, so turning it back on re-syncs from the same
 baseline.
 
@@ -106,7 +106,7 @@ be redirected between the check and the write.
 ## What it does to your own files
 
 GTK is the one place a user reasonably keeps their own rules, so hyprchroma
-does not take `gtk.css` over. The colours go in `hyprchroma.css` beside it, and
+does not take `gtk.css` over. The colors go in `hyprchroma.css` beside it, and
 `gtk.css` gets one line:
 
 ```css
