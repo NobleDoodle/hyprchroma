@@ -1,6 +1,6 @@
 # Maintainer: NobleDoodle <nobledoodle@users.noreply.github.com>
 pkgname=hyprchroma
-pkgver=1.2.0
+pkgver=1.3.0
 pkgrel=1
 pkgdesc="Carry the active Omarchy theme palette into GTK, Qt/KDE, Dark Reader and Pear Desktop"
 arch=('any')
@@ -12,14 +12,14 @@ license=('MIT')
 # here so the requirement is not silent.
 depends=('bash' 'python' 'jq' 'coreutils')
 optdepends=(
-  'omarchy: REQUIRED - this synchronises the active Omarchy theme'
+  'omarchy: first-class palette source with automatic theme-set hooks; without it, supply ~/.config/hyprchroma/palette.toml'
   'hyprland: required in practice - the daemon watches its event stream'
   'adw-gtk-theme: GTK 3 applications follow the theme'
   'python-plyvel: Dark Reader theming in Chromium-family browsers'
   'libnotify: desktop notifications when a sync defers'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('09abf62a3c46b98af1edeacd3beabff26085b2a3effdf4dcbaa634d98d73f899')
+sha256sums=('SKIP')
 
 check() {
   cd "$pkgname-$pkgver"

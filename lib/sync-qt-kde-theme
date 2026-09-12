@@ -38,14 +38,37 @@ export PATH
 HYPRCHROMA_LIB=$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")
 
 
+# The palette is resolved once and kept, not asked for a key at a time: each
+# call costs a process start, and a full sync reads more than fifty keys.
+declare -A PALETTE
+PALETTE_LOADED=0
+
+load_palette() {
+  local key value
+  while IFS=$'\t' read -r key value; do
+    [[ -n $key ]] && PALETTE[$key]=$value
+  done < <("$HYPRCHROMA_LIB/hyprchroma-palette" --all 2>&1)
+  if [[ -z ${PALETTE[background]:-} ]]; then
+    echo "sync-qt-kde-theme: no palette available; see 'hyprchroma palette --template'" >&2
+    exit 1
+  fi
+  PALETTE_LOADED=1
+}
+
 color() {
-  local value
-  value=$(omarchy theme color "$1")
+  # Deliberately does not load: every call site is $(color x), which runs in a
+  # subshell, so anything this set would be discarded and the palette would be
+  # re-resolved once per key. The caller loads it once, in the parent shell.
+  local value=${PALETTE[$1]:-}
   if [[ ! $value =~ ^#[0-9A-Fa-f]{6}$ ]]; then
-    echo "sync-qt-kde-theme: invalid Omarchy color '$1': $value" >&2
+    echo "sync-qt-kde-theme: invalid palette color '$1': $value" >&2
     exit 1
   fi
   printf '%s' "$value"
+}
+
+palette_mode() {
+  [[ ${PALETTE[mode]:-dark} == light ]] && printf 'light' || printf 'dark'
 }
 
 rgb() {
@@ -79,6 +102,7 @@ omarchy_icon_theme() {
   printf "%s" "$value"
 }
 
+load_palette
 background=$(color background)
 dark_background=$(color dark_background)
 darker_background=$(color darker_background)

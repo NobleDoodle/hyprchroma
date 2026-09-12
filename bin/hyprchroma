@@ -91,6 +91,12 @@ migrate_from_omarchroma() {
 install_hooks() {
   local hook source="$HYPRCHROMA_SHARE/hooks/hyprchroma"
   [[ -r $source ]] || return 0
+  # Only where Omarchy is actually the palette source. These hooks exist to
+  # catch an Omarchy theme change; on a system driven by a palette file they
+  # would be directories nothing owns holding a hook nothing runs. Asking the
+  # resolver is the precise question -- "is omarchy on PATH" is not, since a
+  # machine can have the binary and still be driven by a file.
+  [[ $("$HYPRCHROMA_LIB/hyprchroma-palette" --source 2>/dev/null) == omarchy ]] || return 0
   for hook in theme-set font-set; do
     local destination="$HOME/.config/omarchy/hooks/$hook.d/hyprchroma"
     # Through the state helper rather than mkdir plus install: this writes an
@@ -114,14 +120,15 @@ case "${1:-}" in
     # Asking for a colour, rather than only asking whether the binary exists:
     # present-but-unusable and present-but-no-theme-set both end in the same
     # place, and existence alone does not tell them apart from working.
-    if ! command -v omarchy >/dev/null 2>&1; then
-      echo "hyprchroma: omarchy is not installed, so there is no theme to follow." >&2
-      echo "hyprchroma: this daemon is for Omarchy; nothing has been changed." >&2
-      exit 78
-    fi
-    if ! omarchy theme color background >/dev/null 2>&1; then
-      echo "hyprchroma: omarchy is installed but no theme palette can be read." >&2
-      echo "hyprchroma: set a theme with 'omarchy theme set', then start this again." >&2
+    # A palette has to come from somewhere: a palette file, or Omarchy. The
+    # resolver decides which and says so if neither is there. Checked before
+    # anything is written, so a machine with no palette is left alone.
+    if ! "$HYPRCHROMA_LIB/hyprchroma-palette" background >/dev/null 2>&1; then
+      # || true: this pipeline is expected to fail -- it is being run for its
+      # message -- and pipefail would otherwise end the script here, at status
+      # 1, before the exit below could say which failure this was.
+      { "$HYPRCHROMA_LIB/hyprchroma-palette" background 2>&1 >/dev/null | head -4 >&2; } || true
+      echo "hyprchroma: nothing has been changed." >&2
       exit 78
     fi
     migrate_from_omarchroma
@@ -159,6 +166,23 @@ case "${1:-}" in
       --state-dir "$STATE_DIR" --data-dir "$DATA_DIR" restore --mode "$mode"
     exit $?
     ;;
+  palette)
+    shift
+    case "${1:-}" in
+      --capture)
+        # Written through the state helper so it lands the same way every other
+        # file this project writes does.
+        "$HYPRCHROMA_LIB/hyprchroma-palette" --capture |
+          "$HYPRCHROMA_LIB/hyprchroma-state" write-file \
+            --path "${XDG_CONFIG_HOME:-$HOME/.config}/hyprchroma/palette.toml" --mode 644 &&
+          echo "hyprchroma: palette written to ${XDG_CONFIG_HOME:-$HOME/.config}/hyprchroma/palette.toml"
+        ;;
+      --template|--source|--source-id|--all) "$HYPRCHROMA_LIB/hyprchroma-palette" "$1" ;;
+      "") "$HYPRCHROMA_LIB/hyprchroma-palette" --all ;;
+      *) echo "hyprchroma palette: unknown option: $1" >&2; exit 2 ;;
+    esac
+    exit $?
+    ;;
   stale-apps)
     # The applications still drawing the previous palette. Exposed here so a
     # bar widget can ask without reaching into /usr/lib for an internal helper.
@@ -169,7 +193,7 @@ case "${1:-}" in
     exit $?
     ;;
   --version|version)
-    echo "hyprchroma 1.2.0"
+    echo "hyprchroma 1.3.0"
     exit 0
     ;;
 esac
@@ -198,6 +222,7 @@ Usage: hyprchroma [--target=gtk|qt-kde|dark-reader|pear]
                   [--set-enabled=true|false] [--force] [--quiet] [--notify]
        hyprchroma daemon           watch for changes and keep everything in step
        hyprchroma install-hooks    place the Omarchy theme and font hooks
+       hyprchroma palette [--all|--capture|--template|--source]
        hyprchroma stale-apps       list apps still showing the old theme
        hyprchroma restore [--stock|--captured]
        hyprchroma --version
@@ -246,14 +271,43 @@ report_stale_apps() {
       "Still showing the previous theme: $stale_list" || true
 }
 
+# The palette is resolved once and kept, not asked for a key at a time: each
+# call costs a process start, and a full sync reads more than fifty keys.
+declare -A PALETTE
+PALETTE_LOADED=0
+
+load_palette() {
+  local key value
+  while IFS=$'\t' read -r key value; do
+    [[ -n $key ]] && PALETTE[$key]=$value
+  done < <("$HYPRCHROMA_LIB/hyprchroma-palette" --all 2>&1)
+  if [[ -z ${PALETTE[background]:-} ]]; then
+    echo "hyprchroma: no palette available; see 'hyprchroma palette --template'" >&2
+    exit 1
+  fi
+  PALETTE_LOADED=1
+}
+
 color() {
-  local value
-  value=$(omarchy theme color "$1")
-  [[ $value =~ ^#[0-9A-Fa-f]{6}$ ]] || fail "invalid theme color $1: $value"
+  # Deliberately does not load: every call site is $(color x), which runs in a
+  # subshell, so anything this set would be discarded and the palette would be
+  # re-resolved once per key. The caller loads it once, in the parent shell.
+  local value=${PALETTE[$1]:-}
+  if [[ ! $value =~ ^#[0-9A-Fa-f]{6}$ ]]; then
+    echo "hyprchroma: invalid palette color '$1': $value" >&2
+    exit 1
+  fi
   printf '%s' "$value"
 }
 
-command -v omarchy >/dev/null || fail "omarchy is not available"
+palette_mode() {
+  [[ ${PALETTE[mode]:-dark} == light ]] && printf 'light' || printf 'dark'
+}
+
+# Omarchy is one palette source, not a requirement: the resolver decides, and
+# says so itself when nothing can provide a palette.
+"$HYPRCHROMA_LIB/hyprchroma-palette" background >/dev/null 2>&1 ||
+  fail "no palette available; see 'hyprchroma palette --template'"
 # Checked rather than assumed: jq gates every framework through target_enabled,
 # whose "|| echo true" fallback would silently report each one enabled if jq
 # were missing, and python3 writes the settings and status files. Both ship with
@@ -402,7 +456,10 @@ if [[ $set_enabled == "false" ]]; then
   exit 0
 fi
 
-theme_name=$(omarchy theme current)
+# Identifies the palette for change detection: Omarchy's theme name when
+# Omarchy is the source, the file's own content when it is not.
+load_palette
+theme_name=$("$HYPRCHROMA_LIB/hyprchroma-palette" --source-id 2>/dev/null || echo unknown)
 background=$(color background)
 dark_background=$(color dark_background)
 darker_background=$(color darker_background)
@@ -423,7 +480,7 @@ yellow=$(color yellow)
 bright_yellow=$(color bright_yellow)
 blue=$(color blue)
 magenta=$(color magenta)
-mode=$(omarchy theme color mode)
+mode=$(palette_mode)
 browser_info=$("$HYPRCHROMA_LIB/hyprchroma-dark-reader" --info 2>/dev/null || printf '{}')
 browser_desktop=$(jq -r '.desktop // ""' <<<"$browser_info")
 browser_name=$(jq -r '.name // "the browser"' <<<"$browser_info")

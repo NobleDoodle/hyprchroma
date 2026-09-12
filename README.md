@@ -44,15 +44,43 @@ first touched it, rather than leaving its colours in place with syncing merely
 stopped. The snapshot is kept, so turning it back on re-syncs from the same
 baseline.
 
+## Where the palette comes from
+
+hyprchroma needs a palette. It does not care who provides one.
+
+**On Omarchy** it is first class and automatic: the daemon installs Omarchy's
+`theme-set` and `font-set` hooks, and `omarchy theme set` applies everything at
+once. Omarchy's own resolver answers, so its alias cascade and derived shades
+are exactly what Omarchy computes rather than an approximation made here.
+
+**Anywhere else** — plain Hyprland, a Quickshell setup, whatever you have
+built — write a palette file and sync when you want to:
+
+```bash
+hyprchroma palette --template > ~/.config/hyprchroma/palette.toml
+$EDITOR ~/.config/hyprchroma/palette.toml
+hyprchroma --force
+```
+
+Twenty `#rrggbb` keys, all required, named in the template. `mode` is optional
+and inferred from the background's luminance. The file wins over Omarchy when
+both are present, so it is also how you override a theme you otherwise like.
+
+`hyprchroma palette --capture` writes the currently resolved palette into that
+file. On Omarchy that is the way to pin a theme, or to carry one to a machine
+without Omarchy: Omarchy derives several keys rather than storing them, so a
+theme's own `colors.toml` copied across would be missing some, and capturing
+resolves them first.
+
+`hyprchroma palette --source` says which is in use.
+
 ## Requirements
 
-**This is for Omarchy.** The palette it synchronises is the active Omarchy
-theme, so on a system without Omarchy the daemon says so and stops without
-changing anything.
+**A palette source.** Omarchy, or a palette file as above. The daemon says so
+and stops without changing anything when there is neither.
 
 | | Needed for | Without it |
 |---|---|---|
-| Omarchy | the palette itself | the daemon refuses to start |
 | `hyprland` | the event stream the daemon watches | the daemon restarts until it appears |
 | `jq`, `python3` | settings, status and every JSON write | required |
 | `adw-gtk-theme` | GTK 3 applications | GTK 3 apps will not follow the theme |

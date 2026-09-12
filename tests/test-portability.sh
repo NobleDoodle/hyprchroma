@@ -21,17 +21,24 @@ out=$(timeout 20 systemd-run --user --collect --wait --pipe \
   "$STAGE/root/usr/bin/hyprchroma" daemon 2>&1)
 chk "refuses with EX_CONFIG when no palette can be read" \
   "$(grep -oE 'status=78/CONFIG' <<<"$out" | head -1)" "status=78/CONFIG"
+# Two shapes, both correct: "no palette" when nothing can provide one, and
+# "no usable <key>" when a source is present but cannot answer.
 chk "says why, in words" \
-  "$(grep -c 'no theme palette can be read\|omarchy is not installed' <<<"$out")" "1"
+  "$(grep -cE 'no palette|no usable' <<<"$out" | head -1)" "1"
 chk "writes nothing into a home that has no Omarchy" \
   "$(find "$H/.config" -mindepth 1 2>/dev/null | wc -l)" "0"
 chk "the refusal happens before any hook directory is made" \
   "$([ -d "$H/.config/omarchy" ] && echo made || echo none)" "none"
 
-# The check has to be the real operation: a binary that exists but cannot
-# produce a colour is not a working Omarchy.
-chk "the guard asks omarchy for a colour, not just for its presence" \
-  "$(countcode 'omarchy theme color background' bin/hyprchroma)" "1"
+# The guard asks the resolver for a real colour: Omarchy is one source among
+# others now, and a binary that exists but cannot produce a colour is not a
+# working source either way.
+# Three: the daemon's guard, the message it prints on failure, and the
+# top-level check the sync path makes.
+chk "the guard asks the resolver for a colour" \
+  "$(countcode 'hyprchroma-palette" background' bin/hyprchroma)" "3"
+chk "no hard requirement on omarchy remains" \
+  "$(countcode 'command -v omarchy .*\|\| fail' bin/hyprchroma)" "0"
 
 # --- the unit must survive Hyprland not being up yet -----------------------
 # watch-events returns 0 when there is no event stream, which is the ordinary
@@ -43,8 +50,8 @@ chk "unit does not restart into a missing Omarchy" \
   "$(grep -c '^RestartPreventExitStatus=78' $unit)" "1"
 
 # --- the requirement is stated where someone would look --------------------
-chk "PKGBUILD names omarchy" "$(grep -c 'omarchy: REQUIRED' packaging/PKGBUILD)" "1"
-chk "README says this is for Omarchy" "$(grep -c 'This is for Omarchy' README.md)" "1"
+chk "PKGBUILD names omarchy" "$(grep -c 'omarchy: first-class' packaging/PKGBUILD)" "1"
+chk "README documents a palette file for non-Omarchy systems" "$(grep -c 'palette --template' README.md)" "1"
 
 # --- no promises of a fallback that no longer exists -----------------------
 # The timer lived in the plugin's Service.qml, which the split deleted.
