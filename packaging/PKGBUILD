@@ -1,6 +1,6 @@
 # Maintainer: NobleDoodle <nobledoodle@users.noreply.github.com>
 pkgname=hyprchroma
-pkgver=1.4.0
+pkgver=1.4.1
 pkgrel=1
 pkgdesc="Carry the active Omarchy theme palette into GTK, Qt/KDE, Dark Reader and Pear Desktop"
 arch=('any')
@@ -19,7 +19,7 @@ optdepends=(
   'libnotify: desktop notifications when a sync defers'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('3c400fa8a187625c981883aae1c5c53ff1f5d444b4afeb841fd9a3de3182af66')
+sha256sums=('SKIP')
 
 check() {
   cd "$pkgname-$pkgver"

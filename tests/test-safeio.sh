@@ -132,7 +132,14 @@ chk "no lock is opened for writing anywhere" \
 # watcher locks that now go through it.
 chk "every watcher lock is prepared first" \
   "$(countcode 'prepare_lock\(' lib/hyprchroma-state)" "5"
-chk "sync embeds no writer of its own" \
-  "$(countcode 'tempfile\.mkstemp\(' bin/hyprchroma)" "0"
+# Scoped to bin/ only before, which is why a fifth copy sat in the Qt/KDE
+# generator writing kdeglobals by pathname and went unnoticed for a release.
+chk "no generator embeds a writer of its own" \
+  "$(countcode 'tempfile\.mkstemp\(|os\.replace\(temporary' bin/hyprchroma lib/sync-gtk-theme lib/sync-qt-kde-theme)" "0"
+# Eleven: seven in bin/hyprchroma (four embedded writers, the theme hook, the
+# Pear stylesheet, a captured palette), two GTK stylesheets, and the Qt/KDE
+# colour scheme plus kdeglobals.
+chk "every generator write goes through the helper" \
+  "$(countcode 'write-file", "--path"|hyprchroma-state" write-file' bin/hyprchroma lib/sync-gtk-theme lib/sync-qt-kde-theme)" "11"
 chk "sync's embedded writers call the helper" \
   "$(countcode 'write-file", "--path"' bin/hyprchroma)" "4"

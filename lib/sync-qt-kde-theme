@@ -265,7 +265,7 @@ globals_changed=$(
 import hashlib
 import os
 import stat
-import tempfile
+import subprocess
 import sys
 from pathlib import Path
 
@@ -376,28 +376,22 @@ updated_text = "\n\n".join(part for part in parts if part) + "\n"
 if updated_text == current_text:
     print(0)
 else:
-    # Exclusive random temporary in the destination directory: "<name>.tmp" is
-    # guessable, and a symlink left there would be written through.
+    # Handed to the state helper, which creates its temporary and renames it
+    # relative to a directory descriptor it has verified. This was the fifth
+    # copy of an atomic_write that made the temporary name exclusive but still
+    # resolved the destination directory by pathname.
     mode = (
         stat.S_IMODE(globals_path.stat().st_mode)
         if globals_path.exists()
         else 0o600
     )
-    descriptor, temporary = tempfile.mkstemp(
-        prefix="." + globals_path.name + ".", dir=globals_path.parent)
-    try:
-        with os.fdopen(descriptor, "w") as handle:
-            handle.write(updated_text)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.chmod(temporary, mode)
-        os.replace(temporary, globals_path)
-    except BaseException:
-        try:
-            os.unlink(temporary)
-        except FileNotFoundError:
-            pass
-        raise
+    subprocess.run(
+        [os.path.join(os.environ.get("HYPRCHROMA_LIB", "/usr/lib/hyprchroma"),
+                      "hyprchroma-state"),
+         "write-file", "--path", str(globals_path), "--mode", format(mode, "o")],
+        input=updated_text.encode(),
+        check=True,
+    )
     print(1)
 PY
 )

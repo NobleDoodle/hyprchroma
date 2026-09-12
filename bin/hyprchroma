@@ -193,7 +193,7 @@ case "${1:-}" in
     exit $?
     ;;
   --version|version)
-    echo "hyprchroma 1.4.0"
+    echo "hyprchroma 1.4.1"
     exit 0
     ;;
 esac
