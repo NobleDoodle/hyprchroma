@@ -19,7 +19,7 @@ optdepends=(
   'libnotify: desktop notifications when a sync defers'
 )
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('SKIP')
+sha256sums=('09abf62a3c46b98af1edeacd3beabff26085b2a3effdf4dcbaa634d98d73f899')
 
 check() {
   cd "$pkgname-$pkgver"
