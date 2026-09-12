@@ -140,6 +140,8 @@ chk "no generator embeds a writer of its own" \
 # Pear stylesheet, a captured palette), two GTK stylesheets, and the Qt/KDE
 # color scheme plus kdeglobals.
 chk "every generator write goes through the helper" \
-  "$(countcode 'write-file", "--path"|hyprchroma-state" write-file' bin/hyprchroma lib/sync-gtk-theme lib/sync-qt-kde-theme)" "11"
+  "$(countcode 'write-file", "--path"|hyprchroma-state" write-file' bin/hyprchroma lib/sync-gtk-theme lib/sync-qt-kde-theme)" "12"
+# Five: settings on a toggle, status, the Dark Reader theme, the Pear config,
+# and the removed-framework list.
 chk "sync's embedded writers call the helper" \
-  "$(countcode 'write-file", "--path"' bin/hyprchroma)" "4"
+  "$(countcode 'write-file", "--path"' bin/hyprchroma)" "5"
