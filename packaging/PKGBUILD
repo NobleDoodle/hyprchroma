@@ -1,0 +1,27 @@
+# Maintainer: NobleDoodle <nobledoodle@users.noreply.github.com>
+pkgname=hyprchroma
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Carry the active Omarchy theme palette into GTK, Qt/KDE, Dark Reader and Pear Desktop"
+arch=('any')
+url="https://github.com/NobleDoodle/hyprchroma"
+license=('MIT')
+depends=('bash' 'python' 'jq' 'coreutils')
+optdepends=(
+  'hyprland: event-driven syncing instead of a fallback timer'
+  'adw-gtk-theme: GTK 3 applications follow the theme'
+  'python-plyvel: Dark Reader theming in Chromium-family browsers'
+  'libnotify: desktop notifications when a sync defers'
+)
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+check() {
+  cd "$pkgname-$pkgver"
+  make check
+}
+
+package() {
+  cd "$pkgname-$pkgver"
+  make install DESTDIR="$pkgdir" PREFIX=/usr
+}

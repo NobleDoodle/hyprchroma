@@ -1,0 +1,24 @@
+[Unit]
+Description=Hyprchroma theme synchronisation daemon
+Documentation=https://github.com/NobleDoodle/hyprchroma
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/hyprchroma daemon
+Restart=on-failure
+RestartSec=2
+# The daemon only ever rewrites the user's own theme configuration. It needs no
+# new privilege, no device access, and nothing outside the session.
+NoNewPrivileges=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=graphical-session.target

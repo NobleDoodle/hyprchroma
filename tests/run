@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Run every suite. Exit non-zero if any assertion fails.
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." || exit 1
+total=0; failed=0
+for suite in tests/test-*.sh; do
+  output=$(bash "$suite" 2>&1)
+  passed=$(grep -c PASS <<<"$output"); bad=$(grep -c FAIL <<<"$output")
+  total=$((total + passed)); failed=$((failed + bad))
+  if (( bad )); then
+    printf '%-26s %2d failed\n' "$(basename "$suite")" "$bad"
+    grep FAIL <<<"$output" | sed 's/^/    /'
+  fi
+done
+printf '%d assertions, %d failures\n' "$total" "$failed"
+(( failed == 0 ))
