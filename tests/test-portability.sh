@@ -59,3 +59,20 @@ chk "README documents a palette file for non-Omarchy systems" "$(grep -c 'palett
 chk "nothing still claims a fallback timer exists" \
   "$(grep -rhoE "(service's|a) fallback timer" bin/ lib/ packaging/ README.md 2>/dev/null \
      | grep -v 'no fallback timer' | wc -l)" "0"
+
+# --- the other side of the repo boundary ----------------------------------
+# The Omarchroma plugin lives in its own repository and calls these. They are
+# interface, not implementation: removing or renaming one breaks a plugin whose
+# tests cannot see this source. Pinned here so that is a deliberate change.
+# Each is a case label in the dispatch; --version carries an alias, so the
+# match allows one.
+for sub in framework stale-apps palette restore --version; do
+  chk "the CLI still dispatches: $sub" \
+    "$(grep -cE "^  ${sub}[|)]" bin/hyprchroma)" "1"
+done
+for action in list remove restore; do
+  chk "framework still takes: $action" \
+    "$(grep -cE "^      (list|remove\\|restore)\\)" bin/hyprchroma)" "2"
+done
+chk "hyprchroma-dark-reader still answers --info" \
+  "$(grep -c '"--info"' lib/hyprchroma-dark-reader | awk '{print ($1>0)?1:0}')" "1"
