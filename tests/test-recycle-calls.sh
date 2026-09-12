@@ -4,12 +4,17 @@ set -uo pipefail
 REPO=$REPO
 ROOT=$(mktemp -d); export HOME=$ROOT
 export XDG_STATE_HOME=$ROOT/state XDG_DATA_HOME=$ROOT/data XDG_RUNTIME_DIR=$ROOT/run
-export HYPRCHROMA_LIB=$ROOT/lib HYPRCHROMA_SHARE=$REPO/share
+# The layout is derived from the binary's own location, so the fake tree is
+# a real one: a copy of the binary in bin/ with stubbed helpers beside it.
 source "$(dirname "$0")/lib-omarchy.sh"
 seed_omarchy_theme
 mkdir -p "$XDG_RUNTIME_DIR"
 
-mkdir -p "$ROOT/lib" && cp "$REPO"/lib/* "$ROOT/lib/"
+mkdir -p "$ROOT/lib" "$ROOT/bin" "$ROOT/share/hooks"
+cp "$REPO"/lib/* "$ROOT/lib/"
+cp "$REPO/bin/hyprchroma" "$ROOT/bin/hyprchroma"
+cp "$REPO/share/hooks/hyprchroma" "$ROOT/share/hooks/hyprchroma"
+cp "$REPO/share/pear-theme.css.template" "$ROOT/share/"
 cat > "$ROOT/lib/hyprchroma-state" <<'E'
 #!/usr/bin/env bash
 prev=""
@@ -38,7 +43,7 @@ printf '#!/usr/bin/env bash\n[[ $1 == --info ]] && echo "{}"\nexit 0\n' > "$ROOT
 chmod +x "$ROOT/lib/hyprchroma-dark-reader"
 mkdir -p "$XDG_STATE_HOME/hyprchroma"
 
-run() { : > "$HOME/calls.log"; bash "$REPO/bin/hyprchroma" "$@" >/dev/null 2>&1; cat "$HOME/calls.log"; }
+run() { : > "$HOME/calls.log"; bash "$ROOT/bin/hyprchroma" "$@" >/dev/null 2>&1; cat "$HOME/calls.log"; }
 chk(){ [[ $2 == "$3" ]] && echo "  PASS $1" || echo "  FAIL $1: got [$2] want [$3]"; }
 
 chk "forced run uses --written-now" "$(run --force --quiet)" "refresh-idle-apps --written-now"

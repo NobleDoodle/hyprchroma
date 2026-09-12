@@ -98,10 +98,13 @@ chk "service files are read through the verified reader" \
   "$(countcode 'safe_read\(root' lib/hyprchroma-state)" "1"
 chk "an Exec= binary is checked before it is run" \
   "$(countcode 'trusted_executable\(candidate\)' lib/hyprchroma-state)" "1"
-# Three: one in trusted_path for a PATH directory, two in trusted_executable
-# for the binary itself and for every directory above it.
-chk "root ownership is demanded of PATH dirs, the binary, and its parents" \
-  "$(countcode 'st_uid != 0' lib/hyprchroma-state)" "3"
+# Two "!= 0" remain in trusted_executable, for the binary and its parents;
+# the PATH check now spells it "not in (0, _OVERFLOW_UID)" so an unmapped
+# owner under systemd's sandboxing is accepted too.
+chk "root ownership is demanded of the binary and its parents" \
+  "$(countcode 'st_uid != 0' lib/hyprchroma-state)" "2"
+chk "the PATH check accepts an unmapped owner" \
+  "$(countcode 'st_uid not in \(0, _OVERFLOW_UID\)' lib/hyprchroma-state)" "1"
 chk "a binary this account can write is refused" "$(python3 - <<'PY'
 import os, pathlib
 ns = {}

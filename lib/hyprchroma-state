@@ -25,6 +25,27 @@ from pathlib import Path
 # entries most often left group-writable on a real machine. /bin, /sbin and
 # /usr/sbin are gone too: on a usrmerge system they are symlinks to /usr/bin
 # and contribute nothing. What remains is checked rather than assumed.
+def _overflow_uid() -> int:
+    """The uid the kernel shows for an owner not mapped into this namespace.
+
+    Under systemd's sandboxing every read-only bind mount -- /, /usr, /home --
+    reports this instead of root, because root is not mapped. Such a directory
+    cannot be written by anyone here at all, so it is trusted like root's; the
+    mode check below still applies to it either way."""
+    try:
+        return int(pathlib_read("/proc/sys/kernel/overflowuid"))
+    except (OSError, ValueError):
+        return 65534
+
+
+def pathlib_read(name: str) -> str:
+    with open(name, "r", encoding="ascii") as handle:
+        return handle.read().strip()
+
+
+_OVERFLOW_UID = _overflow_uid()
+
+
 PATH_CANDIDATES = ("/usr/bin", "/usr/share/omarchy/bin")
 
 
@@ -37,10 +58,18 @@ def trusted_path() -> str:
             continue
         if not stat.S_ISDIR(info.st_mode):
             continue
-        if info.st_uid != 0 or info.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+        # Root, or an owner not mapped into this namespace -- under systemd's
+        # sandboxing /usr reports the overflow uid rather than root, and a
+        # directory owned by an unmapped uid cannot be written by anyone here.
+        if info.st_uid not in (0, _OVERFLOW_UID):
+            continue
+        if info.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
             continue
         keep.append(directory)
-    return ":".join(keep)
+    # With nothing surviving there is nothing to resolve against, and an empty
+    # PATH fails every lookup silently. Fall back to the same fixed identities
+    # the shell entry points use rather than to whatever was inherited.
+    return ":".join(keep) if keep else ":".join(PATH_CANDIDATES)
 
 
 os.environ["PATH"] = trusted_path()
@@ -113,7 +142,7 @@ def _verify_directory(descriptor: int, where: str) -> None:
     info = os.fstat(descriptor)
     if not stat.S_ISDIR(info.st_mode):
         raise OSError(f"not a directory: {where}")
-    if info.st_uid not in (0, os.geteuid()):
+    if info.st_uid not in (0, os.geteuid(), _OVERFLOW_UID):
         raise OSError(f"directory belongs to uid {info.st_uid}: {where}")
     # Group- or world-writable is only safe with the sticky bit, which stops
     # anyone but an entry's owner renaming or removing it -- the /tmp rule.
@@ -230,6 +259,12 @@ def prepare_lock(path) -> None:
     The sync script then opens it read-only and takes an flock on it, so even
     a successful swap can never truncate or write through this path."""
     path = Path(path)
+    # This removes whatever is in the way -- a symlink planted at the lock path,
+    # or a fifo that would block the open forever. That is worth having, but it
+    # is an unlink, so it is confined to names that are actually locks rather
+    # than offered for any path a caller names.
+    if path.suffix != ".lock":
+        raise ValueError(f"refusing to prepare a lock at {path}: not a .lock name")
     descriptor = open_dir(path.parent, create=True)
     try:
         try:
@@ -1496,8 +1531,11 @@ def main():
         refresh_idle_apps(
             int(time.time()) - LAUNCH_GRACE_SECONDS if args.written_now else None)
     elif args.command == "write-file":
+        # Masked to the permission bits: nothing this writes is ever meant to
+        # be setuid, setgid or sticky, and accepting those made a theme helper
+        # into a way of setting them.
         atomic_write(Path(args.path), sys.stdin.buffer.read(),
-                     int(args.mode, 8) if args.mode else None)
+                     (int(args.mode, 8) & 0o777) if args.mode else None)
     elif args.command == "prepare-lock":
         prepare_lock(Path(args.path))
     elif args.command == "watch-browser-exit":

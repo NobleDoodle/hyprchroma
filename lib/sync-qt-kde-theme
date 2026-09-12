@@ -19,7 +19,9 @@ hyprchroma_trusted_path() {
   for directory in /usr/bin /usr/share/omarchy/bin; do
     [[ -d $directory ]] || continue
     read -r owner mode < <(/usr/bin/stat -Lc '%u %a' "$directory" 2>/dev/null) || continue
-    [[ $owner == 0 ]] || continue
+    # Root, or an owner not mapped into this namespace: under systemd's
+    # sandboxing /usr reports the overflow uid rather than root.
+    [[ $owner == 0 || $owner == "$(</proc/sys/kernel/overflowuid)" ]] || continue
     (( (8#$mode & 8#022) == 0 )) || continue
     trusted="${trusted:+$trusted:}$directory"
   done
@@ -30,9 +32,10 @@ hyprchroma_trusted_path() {
 PATH=$(hyprchroma_trusted_path)
 export PATH
 
-# The state helper is taken from the installed tree, never from a PATH lookup:
-# it performs every write, so it must be the copy shipped with this file.
-HYPRCHROMA_LIB="${HYPRCHROMA_LIB:-/usr/lib/hyprchroma}"
+# Derived from this script's own resolved location, never from the
+# environment: it chooses which executable performs every write. See the same
+# reasoning in bin/hyprchroma.
+HYPRCHROMA_LIB=$(dirname -- "$(realpath -- "${BASH_SOURCE[0]}")")
 
 
 color() {

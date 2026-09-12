@@ -18,7 +18,9 @@ hyprchroma_trusted_path() {
   for directory in /usr/bin /usr/share/omarchy/bin; do
     [[ -d $directory ]] || continue
     read -r owner mode < <(/usr/bin/stat -Lc '%u %a' "$directory" 2>/dev/null) || continue
-    [[ $owner == 0 ]] || continue
+    # Root, or an owner not mapped into this namespace: under systemd's
+    # sandboxing /usr reports the overflow uid rather than root.
+    [[ $owner == 0 || $owner == "$(</proc/sys/kernel/overflowuid)" ]] || continue
     (( (8#$mode & 8#022) == 0 )) || continue
     trusted="${trusted:+$trusted:}$directory"
   done

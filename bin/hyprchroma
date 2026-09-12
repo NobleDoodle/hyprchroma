@@ -19,7 +19,9 @@ hyprchroma_trusted_path() {
   for directory in /usr/bin /usr/share/omarchy/bin; do
     [[ -d $directory ]] || continue
     read -r owner mode < <(/usr/bin/stat -Lc '%u %a' "$directory" 2>/dev/null) || continue
-    [[ $owner == 0 ]] || continue
+    # Root, or an owner not mapped into this namespace: under systemd's
+    # sandboxing /usr reports the overflow uid rather than root.
+    [[ $owner == 0 || $owner == "$(</proc/sys/kernel/overflowuid)" ]] || continue
     (( (8#$mode & 8#022) == 0 )) || continue
     trusted="${trusted:+$trusted:}$directory"
   done
@@ -31,9 +33,32 @@ PATH=$(hyprchroma_trusted_path)
 export PATH
 
 
-# Installed layout, overridable so the tree can be run from a checkout.
-HYPRCHROMA_LIB="${HYPRCHROMA_LIB:-/usr/lib/hyprchroma}"
-HYPRCHROMA_SHARE="${HYPRCHROMA_SHARE:-/usr/share/hyprchroma}"
+# Where the helpers live is derived from this script's own resolved location,
+# never from the environment. HYPRCHROMA_LIB used to be an override, which meant
+# a single line in ~/.config/environment.d -- read by systemd --user at login --
+# chose which executables the daemon ran and which file was installed as an
+# Omarchy theme hook. That is arbitrary code execution and persistence handed
+# over by a variable, exactly what pinning PATH exists to prevent. There is no
+# override now: installed under /usr it finds /usr/lib/hyprchroma, and run from
+# a checkout it finds the checkout's own lib, because both are simply "next to
+# me".
+HYPRCHROMA_SELF=$(realpath -- "${BASH_SOURCE[0]}")
+hyprchroma_prefix=$(dirname -- "$(dirname -- "$HYPRCHROMA_SELF")")
+if [[ -d $hyprchroma_prefix/lib/hyprchroma ]]; then
+  HYPRCHROMA_LIB="$hyprchroma_prefix/lib/hyprchroma"
+else
+  HYPRCHROMA_LIB="$hyprchroma_prefix/lib"
+fi
+if [[ -d $hyprchroma_prefix/share/hyprchroma ]]; then
+  HYPRCHROMA_SHARE="$hyprchroma_prefix/share/hyprchroma"
+else
+  HYPRCHROMA_SHARE="$hyprchroma_prefix/share"
+fi
+unset hyprchroma_prefix
+# Exported for the embedded Python below, which uses it to find the state
+# helper. This is the value derived above, not anything read from the
+# environment, and the sync libraries derive their own the same way rather than
+# trusting what they inherit.
 export HYPRCHROMA_LIB HYPRCHROMA_SHARE
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/hyprchroma"
 DATA_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/hyprchroma"
@@ -67,10 +92,14 @@ install_hooks() {
   local hook source="$HYPRCHROMA_SHARE/hooks/hyprchroma"
   [[ -r $source ]] || return 0
   for hook in theme-set font-set; do
-    local directory="$HOME/.config/omarchy/hooks/$hook.d"
-    mkdir -p -- "$directory"
-    if ! cmp -s "$source" "$directory/hyprchroma"; then
-      install -m 755 "$source" "$directory/hyprchroma"
+    local destination="$HOME/.config/omarchy/hooks/$hook.d/hyprchroma"
+    # Through the state helper rather than mkdir plus install: this writes an
+    # executable that Omarchy runs on every theme change, so it is the last
+    # place to resolve a destination directory by pathname and hope no
+    # ancestor was swapped.
+    if ! cmp -s "$source" "$destination" 2>/dev/null; then
+      "$HYPRCHROMA_LIB/hyprchroma-state" write-file \
+        --path "$destination" --mode 755 < "$source" || return 1
     fi
   done
 }
@@ -79,9 +108,11 @@ case "${1:-}" in
   daemon)
     migrate_from_omarchroma
     install_hooks
-    # One sync at start so a theme changed while the daemon was down is picked
-    # up, then watch. watch-events returns when the event stream closes, and
-    # systemd restarts the unit.
+    # One sync before watching, so a theme set while the daemon was down -- the
+    # machine off, the session restarted -- is applied at login rather than
+    # waiting for a window to open. It syncs only what actually changed.
+    "$HYPRCHROMA_SELF" --quiet || true
+    # watch-events returns when the event stream closes; systemd restarts us.
     "$HYPRCHROMA_LIB/hyprchroma-state" \
       --state-dir "$STATE_DIR" --data-dir "$DATA_DIR" watch-events
     exit $?
@@ -116,7 +147,7 @@ case "${1:-}" in
     exit $?
     ;;
   --version|version)
-    echo "hyprchroma 1.0.1"
+    echo "hyprchroma 1.1.0"
     exit 0
     ;;
 esac
