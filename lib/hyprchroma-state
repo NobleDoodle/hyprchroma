@@ -1232,9 +1232,10 @@ def watch_events(state_dir, data_dir):
     those and letting the sync decide whether anything actually moved replaces
     polling on a fixed interval.
 
-    One runs at a time. When the stream closes this returns so the service can
-    restart it; a change in that gap is caught by the next window event or the
-    service's fallback timer."""
+    One runs at a time. When the stream closes -- or before it exists, at
+    login -- this returns and the unit restarts it. A change in that gap is
+    caught by the sync the daemon runs before watching, and then by the next
+    window event."""
     lock_dir = Path(os.environ.get("XDG_RUNTIME_DIR") or state_dir)
     lock_dir.mkdir(parents=True, exist_ok=True)
     # Created following no symlink, then opened read-only: flock needs no
@@ -1248,7 +1249,10 @@ def watch_events(state_dir, data_dir):
 
     stream_path = hyprland_event_socket()
     if stream_path is None:
-        return  # no event stream to watch; the fallback timer covers it
+        # No stream yet -- Hyprland not up at login. Returning lets the unit
+        # restart us in a moment; there is no fallback timer behind this any
+        # more, so silently carrying on would mean never watching at all.
+        return
 
     sync = ["/usr/bin/hyprchroma", "--quiet"]
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as stream:

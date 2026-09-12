@@ -7,8 +7,14 @@ After=graphical-session.target
 [Service]
 Type=simple
 ExecStart=/usr/bin/hyprchroma daemon
-Restart=on-failure
+# Always, not on-failure: the watcher returns 0 when Hyprland's socket is not
+# up yet, which is the ordinary case at login, and on-failure would leave the
+# daemon permanently stopped after that first clean exit. 78 is EX_CONFIG,
+# which the daemon uses for "this is not an Omarchy system" -- the one failure
+# restarting cannot fix.
+Restart=always
 RestartSec=2
+RestartPreventExitStatus=78
 
 # The daemon rewrites the user's own theme configuration and nothing else. It
 # needs no new privilege, no device, no network, and no kernel surface, so it

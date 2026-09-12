@@ -46,9 +46,14 @@ baseline.
 
 ## Requirements
 
+**This is for Omarchy.** The palette it synchronises is the active Omarchy
+theme, so on a system without Omarchy the daemon says so and stops without
+changing anything.
+
 | | Needed for | Without it |
 |---|---|---|
-| `hyprland` | the event stream the daemon watches | falls back to a timer |
+| Omarchy | the palette itself | the daemon refuses to start |
+| `hyprland` | the event stream the daemon watches | the daemon restarts until it appears |
 | `jq`, `python3` | settings, status and every JSON write | required |
 | `adw-gtk-theme` | GTK 3 applications | GTK 3 apps will not follow the theme |
 | `python-plyvel` | Dark Reader in Chromium browsers | Dark Reader is not themed there |

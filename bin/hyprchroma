@@ -106,13 +106,35 @@ install_hooks() {
 
 case "${1:-}" in
   daemon)
+    # Omarchy is where the palette comes from, so without it there is nothing
+    # to follow. Said once, plainly, before anything is written -- rather than
+    # surfacing later as an empty colour, and rather than leaving Omarchy hook
+    # directories in a home that has no Omarchy. Exit 78 is EX_CONFIG, and the
+    # unit is told not to restart on it: this will not fix itself.
+    # Asking for a colour, rather than only asking whether the binary exists:
+    # present-but-unusable and present-but-no-theme-set both end in the same
+    # place, and existence alone does not tell them apart from working.
+    if ! command -v omarchy >/dev/null 2>&1; then
+      echo "hyprchroma: omarchy is not installed, so there is no theme to follow." >&2
+      echo "hyprchroma: this daemon is for Omarchy; nothing has been changed." >&2
+      exit 78
+    fi
+    if ! omarchy theme color background >/dev/null 2>&1; then
+      echo "hyprchroma: omarchy is installed but no theme palette can be read." >&2
+      echo "hyprchroma: set a theme with 'omarchy theme set', then start this again." >&2
+      exit 78
+    fi
     migrate_from_omarchroma
     install_hooks
     # One sync before watching, so a theme set while the daemon was down -- the
     # machine off, the session restarted -- is applied at login rather than
     # waiting for a window to open. It syncs only what actually changed.
     "$HYPRCHROMA_SELF" --quiet || true
-    # watch-events returns when the event stream closes; systemd restarts us.
+    # watch-events returns when the event stream closes -- and immediately if
+    # Hyprland is not up yet, which is the ordinary case at login. Either way
+    # the unit restarts us (Restart=always, not on-failure: this returns 0).
+    # There is no fallback timer any more; the plugin that used to run one is
+    # a bar widget now.
     "$HYPRCHROMA_LIB/hyprchroma-state" \
       --state-dir "$STATE_DIR" --data-dir "$DATA_DIR" watch-events
     exit $?
@@ -147,7 +169,7 @@ case "${1:-}" in
     exit $?
     ;;
   --version|version)
-    echo "hyprchroma 1.1.0"
+    echo "hyprchroma 1.2.0"
     exit 0
     ;;
 esac
