@@ -106,8 +106,17 @@ case "${1:-}" in
       --state-dir "$STATE_DIR" --data-dir "$DATA_DIR" restore --mode "$mode"
     exit $?
     ;;
+  stale-apps)
+    # The applications still drawing the previous palette. Exposed here so a
+    # bar widget can ask without reaching into /usr/lib for an internal helper.
+    shift
+    "$HYPRCHROMA_LIB/hyprchroma-state" \
+      --state-dir "$STATE_DIR" --data-dir "$DATA_DIR" \
+      report-stale-apps --since-last-sync "$@"
+    exit $?
+    ;;
   --version|version)
-    echo "hyprchroma 1.0.0"
+    echo "hyprchroma 1.0.1"
     exit 0
     ;;
 esac
@@ -136,6 +145,7 @@ Usage: hyprchroma [--target=gtk|qt-kde|dark-reader|pear]
                   [--set-enabled=true|false] [--force] [--quiet] [--notify]
        hyprchroma daemon           watch for changes and keep everything in step
        hyprchroma install-hooks    place the Omarchy theme and font hooks
+       hyprchroma stale-apps       list apps still showing the old theme
        hyprchroma restore [--stock|--captured]
        hyprchroma --version
 USAGE
