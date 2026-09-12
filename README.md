@@ -19,10 +19,23 @@ package for you if it is missing.
 
 ## Install
 
+There is no AUR entry. Build it and let pacman own the result, which is the
+part that mattered about it being a package — it can be listed, upgraded and
+removed like anything else:
+
 ```bash
-omarchy pkg aur add hyprchroma
+git clone --depth 1 https://github.com/NobleDoodle/hyprchroma
+cd hyprchroma/packaging && makepkg -si
 systemctl --user enable --now hyprchromad.service
 ```
+
+`makepkg` builds from the tagged release tarball named in the PKGBUILD, not
+from your checkout, so the result is the same whoever builds it.
+
+To update, run the same three commands again. The
+[Omarchroma](https://github.com/NobleDoodle/omarchroma) bar widget does this
+for you: it compares `hyprchroma --version` against what it needs and offers
+the build in Omarchy's terminal when either is missing or too old.
 
 The daemon installs Omarchy's `theme-set` and `font-set` hooks into your own
 configuration on first start, so a theme change applies at once rather than on
@@ -144,7 +157,7 @@ start so the captured baseline is not lost.
 ```bash
 hyprchroma restore --stock        # or --captured
 systemctl --user disable --now hyprchromad.service
-omarchy pkg drop hyprchroma
+sudo pacman -R hyprchroma
 ```
 
 ## License
