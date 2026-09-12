@@ -128,6 +128,33 @@ omarchy_font() {
   printf '%s' "$value"
 }
 
+# A theme only counts as available if it is on disk somewhere GTK looks,
+# rather than merely named.
+gtk_theme_installed() {
+  local name=$1 base entry
+  for base in "$HOME/.themes" "${XDG_DATA_HOME:-$HOME/.local/share}/themes" \
+              /usr/share/themes /usr/local/share/themes; do
+    [[ -d $base/$name ]] && return 0
+  done
+  local -a extra
+  IFS=':' read -ra extra <<< "${XDG_DATA_DIRS:-}"
+  for entry in "${extra[@]:-}"; do
+    [[ -n $entry && -d $entry/themes/$name ]] && return 0
+  done
+  return 1
+}
+
+# gsettings needs its schemas installed. Where they are not, writing the key
+# through dconf still works, and doing nothing at all would be worse.
+set_interface() {
+  local key=$1 value=$2
+  if gsettings writable org.gnome.desktop.interface "$key" >/dev/null 2>&1; then
+    gsettings set org.gnome.desktop.interface "$key" "$value" && return 0
+  fi
+  command -v dconf >/dev/null 2>&1 || return 0
+  dconf write "/org/gnome/desktop/interface/${key}" "'$value'" 2>/dev/null || true
+}
+
 load_palette
 background=$(color background)
 dark_background=$(color dark_background)
@@ -414,19 +441,35 @@ gtk3_css=$(cat <<EOF
 EOF
 )
 
+# The colours go in a file of our own, and gtk.css is only made to reference
+# it. Taking gtk.css over meant a user's own rules there stopped applying the
+# moment this was installed and were overwritten on every theme change; now
+# they sit below the import and override it, which is the right way round.
+import_line='@import url("hyprchroma.css");'
 printf '%s\n' "$gtk3_css" |
-  "$HYPRCHROMA_LIB/hyprchroma-state" write-file --path "$gtk3_dir/gtk.css" --mode 644
+  "$HYPRCHROMA_LIB/hyprchroma-state" write-file --path "$gtk3_dir/hyprchroma.css" --mode 644
 printf '%s\n' "$gtk4_css" |
-  "$HYPRCHROMA_LIB/hyprchroma-state" write-file --path "$gtk4_dir/gtk.css" --mode 644
+  "$HYPRCHROMA_LIB/hyprchroma-state" write-file --path "$gtk4_dir/hyprchroma.css" --mode 644
+"$HYPRCHROMA_LIB/hyprchroma-state" ensure-import \
+  --path "$gtk3_dir/gtk.css" --line "$import_line" >/dev/null
+"$HYPRCHROMA_LIB/hyprchroma-state" ensure-import \
+  --path "$gtk4_dir/gtk.css" --line "$import_line" >/dev/null
 trap - EXIT
 
-gsettings set org.gnome.desktop.interface gtk-theme "$gtk_theme"
-gsettings set org.gnome.desktop.interface color-scheme "$color_scheme"
-gsettings set org.gnome.desktop.interface accent-color "$gnome_accent"
+# Setting a theme that is not installed leaves GTK 3 falling back to its
+# default, which looks like this simply did not work. Say so instead.
+if gtk_theme_installed "$gtk_theme"; then
+  set_interface gtk-theme "$gtk_theme"
+else
+  echo "sync-gtk-theme: $gtk_theme is not installed; GTK 3 apps will not follow the theme" >&2
+  echo "sync-gtk-theme: install adw-gtk-theme to fix that" >&2
+fi
+set_interface color-scheme "$color_scheme"
+set_interface accent-color "$gnome_accent"
 
 icon_theme=$(omarchy_icon_theme sync-gtk-theme)
 if [[ -n $icon_theme ]]; then
-  gsettings set org.gnome.desktop.interface icon-theme "$icon_theme"
+  set_interface icon-theme "$icon_theme"
 fi
 
 # Only the family follows Omarchy; the point size stays whatever the user chose.
@@ -437,6 +480,5 @@ if [[ -n $monospace_font ]]; then
   current_monospace=${current_monospace%\'}
   monospace_size=${current_monospace##* }
   [[ $monospace_size =~ ^[0-9]+$ ]] || monospace_size=11
-  gsettings set org.gnome.desktop.interface monospace-font-name \
-    "$monospace_font $monospace_size"
+  set_interface monospace-font-name "$monospace_font $monospace_size"
 fi

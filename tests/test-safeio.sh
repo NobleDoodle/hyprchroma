@@ -73,8 +73,10 @@ PY
 )" "refused"
 
 # --- 3. PATH ---------------------------------------------------------------
-chk "no /usr/local in any code path" \
-  "$(countcode '/usr/local' bin/hyprchroma lib/hyprchroma-state lib/hyprchroma-dark-reader \
+# /usr/local/share/themes is a place GTK looks for a theme, not a place a
+# command is resolved from; the concern was PATH, so the check is scoped to it.
+chk "no /usr/local in any command-resolution path" \
+  "$(countcode '/usr/local/s?bin' bin/hyprchroma lib/hyprchroma-state lib/hyprchroma-dark-reader \
        lib/sync-gtk-theme lib/sync-qt-kde-theme share/hooks/hyprchroma)" "0"
 chk "shell entry points validate their PATH" \
   "$(grep -l 'hyprchroma_trusted_path' bin/hyprchroma lib/sync-gtk-theme \

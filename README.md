@@ -103,11 +103,32 @@ and unwritable by anyone else, and every file it writes is created and renamed
 relative to a directory descriptor it has verified, so nothing on the path can
 be redirected between the check and the write.
 
+## What it does to your own files
+
+GTK is the one place a user reasonably keeps their own rules, so hyprchroma
+does not take `gtk.css` over. The colours go in `hyprchroma.css` beside it, and
+`gtk.css` gets one line:
+
+```css
+@import url("hyprchroma.css");
+```
+
+It goes first, not last: in GTK's CSS a later `@define-color` replaces an
+earlier one, so anything you write below the import wins over the theme. That
+is the point — the palette is the default, your file is the override. Removing
+the framework takes the line back out and leaves the rest of your file alone,
+and a backup never contains that line either.
+
+`kdeglobals` is different: KDE has no import mechanism, so it is edited in
+place, and only the sections hyprchroma owns. What was yours is kept, and a
+backup is stripped of anything generated before it is stored.
+
 ## Files written
 
 ```text
-~/.config/gtk-3.0/            ~/.local/share/color-schemes/Hyprchroma.colors
-~/.config/gtk-4.0/            ~/.local/share/hyprchroma/
+~/.config/gtk-3.0/hyprchroma.css      ~/.local/share/color-schemes/Hyprchroma.colors
+~/.config/gtk-4.0/hyprchroma.css      ~/.local/share/hyprchroma/
+~/.config/gtk-{3,4}.0/gtk.css         (one @import line added, nothing else)
 ~/.config/kdeglobals          ~/.local/state/hyprchroma/
 ~/.config/*rc                 (only the [UiSettings] ColorScheme key)
 ~/.config/YouTube Music/hyprchroma.css
